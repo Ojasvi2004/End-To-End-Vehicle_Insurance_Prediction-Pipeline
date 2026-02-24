@@ -34,6 +34,13 @@ class MyModel:
         try:
             logging.info("Starting prediction process.")
 
+            expected_columns = self._get_expected_columns()
+            if expected_columns:
+                dataframe = self._align_dataframe_to_expected_columns(
+                    dataframe=dataframe,
+                    expected_columns=expected_columns
+                )
+
             # Step 1: Apply scaling transformations using the pre-trained preprocessing object
             transformed_feature = self.preprocessing_object.transform(dataframe)
 
@@ -46,6 +53,45 @@ class MyModel:
         except Exception as e:
             logging.error("Error occurred in predict method", exc_info=True)
             raise MyException(e, sys) from e
+
+    def _get_expected_columns(self):
+        """Get the feature columns seen during preprocessor fitting, if available."""
+        preprocessor = None
+
+        if hasattr(self.preprocessing_object, "named_steps"):
+            preprocessor = self.preprocessing_object.named_steps.get("Preprocessor")
+
+        if preprocessor is not None and hasattr(preprocessor, "feature_names_in_"):
+            return list(preprocessor.feature_names_in_)
+
+        if hasattr(self.preprocessing_object, "feature_names_in_"):
+            return list(self.preprocessing_object.feature_names_in_)
+
+        return None
+
+    @staticmethod
+    def _align_dataframe_to_expected_columns(
+        dataframe: pd.DataFrame, expected_columns: list
+    ) -> pd.DataFrame:
+        """Align inference dataframe schema with fitted preprocessor schema."""
+        aligned_df = dataframe.copy()
+
+        missing_columns = [col for col in expected_columns if col not in aligned_df.columns]
+        extra_columns = [col for col in aligned_df.columns if col not in expected_columns]
+
+        if missing_columns:
+            logging.info(
+                "Adding missing columns for inference with default 0 values: %s",
+                missing_columns
+            )
+            for col in missing_columns:
+                aligned_df[col] = 0
+
+        if extra_columns:
+            logging.info("Dropping unexpected columns from inference data: %s", extra_columns)
+            aligned_df = aligned_df.drop(columns=extra_columns)
+
+        return aligned_df[expected_columns]
 
 
     def __repr__(self):

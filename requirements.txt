@@ -17,3 +17,4 @@ scikit-learn
 boto3
 mypy-boto3-s3
 plotly
+python-multipart
