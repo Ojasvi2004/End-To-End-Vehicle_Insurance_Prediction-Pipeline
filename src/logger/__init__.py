@@ -2,7 +2,14 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from from_root import from_root
+from pathlib import Path
+
+try:
+    from from_root import from_root
+except ImportError:
+    def from_root() -> str:
+        # Resolve project root as two levels up from src/logger/__init__.py
+        return str(Path(__file__).resolve().parents[2])
 
 LOG_DIR='logs'
 LOG_FILE=f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
